@@ -1,5 +1,5 @@
 /* Centinela UFO — Service Worker: app shell offline */
-const CACHE = 'centinela-v2-mapa-inteligencia';
+const CACHE = 'centinela-v4-logo-visible';
 const APP_SHELL = [
   './',
   './index.html',
