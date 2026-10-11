@@ -11,21 +11,13 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
   <style>
     /* Fuentes del sistema: no bloquean si no hay red */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #000;
       padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Inter, sans-serif; }
-    #map {
-      width: 100%; height: 100%; background: #0a1628;
-      filter: saturate(1.15) contrast(1.08) brightness(0.95);
-    }
-    /* Vignette cinematic over map */
-    #map::after {
-      content: '';
-      position: absolute; inset: 0; pointer-events: none; z-index: 400;
-      background: radial-gradient(ellipse at center, transparent 42%, rgba(0,4,12,0.55) 100%);
-    }
+    /* El mapa es ahora la imagen del usuario (ver bloque ESCENARIO al final del CSS) */
     /* Radar sweep overlay */
     #radarSweep {
       position: absolute; inset: 0; pointer-events: none; z-index: 450;
@@ -122,134 +114,83 @@
       font-variant-numeric: tabular-nums; letter-spacing: 0.5px;
     }
 
-    /* ===== DRAWER derecho ocultable ===== */
-    #drawer {
+    /* ===== DRAWERS izquierdos deslizables (Tipos + Identificados) ===== */
+    :root { --lw: 176px; }
+    #legendDrawer, #drawer {
       position: absolute;
-      top: 58px; right: 0;
-      width: 178px;
-      max-height: calc(100% - 120px);
-      transform: translateX(100%);
+      top: 58px; left: 0;
+      width: var(--lw);
+      transform: translateX(-100%);
       transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
       z-index: 1100;
-      filter: drop-shadow(-8px 0 24px rgba(0,120,255,0.15));
+      filter: drop-shadow(8px 0 24px rgba(0,120,255,0.15));
     }
-    #drawer.open { transform: translateX(0); }
-
-    /* Pestaña vertical — ventana desplegable */
-    #drawerTab {
-      position: absolute;
-      top: 148px; right: 0;
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      transform: rotate(180deg);
-      background: linear-gradient(180deg, rgba(0,28,58,0.97), rgba(0,12,32,0.95));
-      border: 1px solid rgba(0,190,255,0.55);
-      border-right: none;
-      border-radius: 10px 0 0 10px;
-      padding: 18px 9px 18px 12px;
-      color: #a8e4ff;
-      font-size: 0.62rem;
-      font-weight: 700;
-      letter-spacing: 1.6px;
-      cursor: pointer;
-      backdrop-filter: blur(14px);
-      box-shadow:
-        -6px 0 22px rgba(0,120,220,0.35),
-        inset 0 0 14px rgba(0,160,255,0.08);
-      transition: right 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-                  background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
-      z-index: 1101;
-      user-select: none;
-      animation: tabNudge 2.8s ease-in-out infinite;
-    }
-    /* Asa / grip de ventana desplegable */
-    #drawerTab::before {
-      content: '';
-      position: absolute;
-      left: 4px; top: 22%; bottom: 22%;
-      width: 3px;
-      border-radius: 3px;
-      background: repeating-linear-gradient(
-        180deg,
-        rgba(0,210,255,0.85) 0 2px,
-        transparent 2px 5px
-      );
-      opacity: 0.85;
-    }
-    /* Flecha «desplegar» */
-    #drawerTab::after {
-      content: '‹';
-      position: absolute;
-      left: 50%;
-      top: 6px;
-      transform: translateX(-50%) rotate(90deg);
-      font-size: 14px;
-      font-weight: 700;
-      color: #5ef0ff;
-      line-height: 1;
-      text-shadow: 0 0 8px rgba(0,220,255,0.7);
-      animation: chevronPulse 1.6s ease-in-out infinite;
-    }
-    @keyframes tabNudge {
-      0%, 100% { box-shadow: -6px 0 22px rgba(0,120,220,0.3), inset 0 0 14px rgba(0,160,255,0.06); }
-      50% { box-shadow: -10px 0 28px rgba(0,180,255,0.45), inset 0 0 16px rgba(0,180,255,0.1); }
-    }
-    @keyframes chevronPulse {
-      0%, 100% { opacity: 0.55; }
-      50% { opacity: 1; }
-    }
-    #drawerTab:hover, #drawerTab:active {
-      background: linear-gradient(180deg, rgba(0,48,90,0.98), rgba(0,22,55,0.96));
-      color: #f0fbff;
-      box-shadow: -8px 0 28px rgba(0,180,255,0.45);
-      animation: none;
-    }
-    #drawer.open #drawerTab {
-      right: 178px;
-      border-color: rgba(0,220,255,0.6);
-      color: #e8fbff;
-      animation: none;
-    }
-    #drawer.open #drawerTab::after {
-      content: '›';
-      animation: none;
-      opacity: 0.9;
-    }
-
-    #drawerPanel {
+    #legendDrawer.open, #drawer.open { transform: translateX(0); }
+    #legendPanel, #drawerPanel {
       background: linear-gradient(165deg, rgba(0,14,32,0.97), rgba(0,6,18,0.95));
       border: 1px solid rgba(0,180,240,0.4);
-      border-right: none;
-      border-radius: 14px 0 0 14px;
+      border-left: none;
+      border-radius: 0 14px 14px 0;
       backdrop-filter: blur(20px);
-      box-shadow:
-        -10px 0 36px rgba(0,0,0,0.55),
-        -2px 0 0 rgba(0,200,255,0.15),
-        inset 1px 0 0 rgba(0,200,255,0.12);
-      padding: 12px 10px 14px;
-      max-height: calc(100vh - 150px);
-      overflow-y: auto;
+      box-shadow: 10px 0 36px rgba(0,0,0,0.55), inset -1px 0 0 rgba(0,200,255,0.12);
+      padding: 12px 12px 12px;
       position: relative;
     }
-    #drawerPanel::before {
+    #drawerPanel {
+      max-height: calc(100vh - 150px);
+      overflow-y: auto;
+    }
+    #legendPanel::before, #drawerPanel::before {
       content: '';
       position: absolute; top: 0; left: 12%; right: 12%; height: 2px;
       border-radius: 2px;
       background: linear-gradient(90deg, transparent, rgba(0,220,255,0.55), transparent);
     }
-    #drawerPanel::after {
-      content: '▾ panel';
-      position: absolute;
-      top: 6px; right: 10px;
-      font-size: 0.4rem;
-      letter-spacing: 0.8px;
-      color: rgba(100,180,210,0.55);
-      text-transform: uppercase;
-    }
     #drawerPanel::-webkit-scrollbar { width: 3px; }
     #drawerPanel::-webkit-scrollbar-thumb {
       background: linear-gradient(180deg, #00a0e0, #0060a0);
       border-radius: 3px;
+    }
+
+    /* Pestañas apiladas en el borde izquierdo: Tipos arriba, Identificados abajo */
+    #leftTabs {
+      position: absolute;
+      top: 148px; left: 0;
+      display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+      z-index: 1101;
+    }
+    #leftTabs.shift { transform: translateX(var(--lw)); }
+    #legendTab, #drawerTab {
+      position: relative;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      background: linear-gradient(180deg, rgba(0,28,58,0.97), rgba(0,12,32,0.95));
+      border: 1px solid rgba(0,190,255,0.55);
+      border-left: none;
+      border-radius: 0 10px 10px 0;
+      padding: 22px 12px 18px 9px;
+      color: #a8e4ff;
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 1.6px;
+      cursor: pointer;
+      backdrop-filter: blur(14px);
+      box-shadow: 6px 0 22px rgba(0,120,220,0.35), inset 0 0 14px rgba(0,160,255,0.08);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: inherit;
+    }
+    #legendTab::after, #drawerTab::after {
+      content: '›';
+      position: absolute; left: 50%; top: 6px;
+      transform: translateX(-50%) rotate(90deg);
+      font-size: 14px; font-weight: 700; color: #5ef0ff; line-height: 1;
+      text-shadow: 0 0 8px rgba(0,220,255,0.7);
+    }
+    #legendTab.on::after, #drawerTab.on::after { content: '‹'; }
+    #legendTab:hover, #drawerTab:hover, #legendTab:active, #drawerTab:active,
+    #legendTab.on, #drawerTab.on {
+      background: linear-gradient(180deg, rgba(0,48,90,0.98), rgba(0,22,55,0.96));
+      color: #f0fbff;
     }
 
     .panel-title {
@@ -744,19 +685,24 @@
 
     /* Leyenda tipos */
     #legend {
-      position: absolute; bottom: calc(28vh + 16px); left: 8px;
-      background: rgba(0,8,18,0.88);
-      border: 1px solid rgba(0,140,200,0.25);
-      border-radius: 8px; padding: 6px 8px;
-      backdrop-filter: blur(12px);
-      font-size: 0.48rem; color: #8ab8d0;
-      line-height: 1.55; z-index: 1005;
+      position: static;
+      font-size: 0.62rem; color: #a8d0e4;
+      line-height: 1.9;
     }
-    #legend .leg-row { display: flex; align-items: center; gap: 5px; }
+    #legend .leg-row { display: flex; align-items: center; gap: 8px; }
     #legend .dot {
-      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
       border: 1px solid rgba(255,255,255,0.4);
     }
+
+
+    .lbl-country {
+      color: #ffffff; font-size: 12.5px; font-weight: 700; letter-spacing: 0.2px;
+      text-align: center; line-height: 20px; white-space: nowrap; pointer-events: none;
+      text-shadow: 0 0 2px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.9), 0 0 6px rgba(0,0,0,.6);
+      font-family: Roboto, Inter, 'Helvetica Neue', Arial, sans-serif;
+    }
+    .lbl-country.lbl-ocean { color: #bcd7ff; font-weight: 500; font-style: italic; letter-spacing: 1px; }
 
     /* Badge identificado */
     #idBadge {
@@ -835,6 +781,17 @@
     }
     #infoCard .close-btn:hover { background: rgba(0,80,140,0.9); }
 
+    #infoCard .close-x {
+      position: sticky; top: 0; float: right; z-index: 2;
+      width: 28px; height: 28px; margin: -8px -6px 0 8px; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,40,80,0.9); border: 1px solid rgba(0,170,255,0.5);
+      border-radius: 50%; color: #e0f4ff; font-size: 1rem; line-height: 1;
+      cursor: pointer; transition: background 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #infoCard .close-x:hover { background: rgba(0,90,160,0.95); }
+
     /* Ajustar satCount por ticker */
     /* satCount position set above */
 
@@ -876,11 +833,120 @@
     }
 
     @media (max-width: 420px) {
-      #drawer { width: 158px; }
-      #drawerTab { top: 130px; }
-      #drawer.open #drawerTab { right: 158px; }
+      :root { --lw: 156px; }
+      #leftTabs { top: 130px; }
       #header h1 { font-size: 0.72rem; letter-spacing: 1.3px; }
     }
+
+    /* =====================================================================
+       ESCENARIO — la imagen del usuario ES el mapa.
+       El escenario tiene exactamente la proporción de la imagen (941×1672),
+       así que todo lo que se dibuja encima queda calibrado con ella.
+       ===================================================================== */
+    html, body { background: #020a14; }
+    #bgBlur {
+      position: fixed; inset: -40px; z-index: 0; pointer-events: none;
+      background: #020a14 url('assets/mapa-sudamerica.jpg') center / cover no-repeat;
+      filter: blur(28px) brightness(0.38) saturate(1.2);
+    }
+    #stageWrap {
+      position: fixed; z-index: 1;
+      top: env(safe-area-inset-top, 0px); right: env(safe-area-inset-right, 0px);
+      bottom: env(safe-area-inset-bottom, 0px); left: env(safe-area-inset-left, 0px);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #stage {
+      --avail-w: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+      --avail-h: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+      position: relative; flex: none; overflow: hidden; isolation: isolate;
+      width: min(var(--avail-w), calc(var(--avail-h) * 0.562799));
+      height: min(var(--avail-h), calc(var(--avail-w) * 1.776833));
+      container-type: size;
+      box-shadow: 0 0 60px rgba(0,0,0,0.65);
+    }
+    @supports (height: 100dvh) {
+      #stage {
+        --avail-h: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+      }
+    }
+    #map { position: absolute; inset: 0; width: 100%; height: 100%; background: #02101e; filter: none; }
+    #map::after { display: none; }
+    #radarSweep { display: none !important; }   /* la imagen ya trae su propio radar */
+    #hud { position: absolute; inset: 0; }
+
+    /* Franja superior (bajo el título y la señal que ya trae la imagen) */
+    #header { top: 7.5%; max-width: min(270px, calc(100% - 92px)); }
+    #idBadge { top: calc(7.5% + 57px); max-width: 96%; }
+    #satCount { top: calc(7.5% + 82px); width: min(320px, 92%); }
+    #netStatus {
+      top: calc(7.5% + 108px); bottom: auto; max-width: 94%;
+    }
+    #confirmBanner { top: calc(7.5% + 130px); max-width: min(300px, 94%); }
+    #btnInfo { top: 7.5%; bottom: auto; right: 2.2%; }
+
+    /* Pestañas y paneles laterales sobre el Pacífico */
+    #leftTabs { top: 26%; }
+    #drawer, #legendDrawer { top: 21%; }
+    #drawerPanel { max-height: calc(100cqh - 21cqh - 24px); }
+
+    /* Detección: océano Atlántico, bajo Uruguay */
+    #btnDetect {
+      top: 59.5%; bottom: auto; left: auto; right: 2.2%; transform: none;
+      padding: 5px 9px; font-size: 0.55rem; letter-spacing: 0.5px; gap: 5px;
+    }
+
+    /* Próximo en tránsito: entre los dos marcos inferiores de la imagen */
+    #nextPass { bottom: 3.8%; width: min(180px, 36%); max-height: 11%; }
+    @media (max-width: 420px) {
+      #nextPass { bottom: 3.8%; width: min(180px, 36%); max-height: 11%; }
+      #leftTabs { top: 26%; }
+    }
+
+    /* Pestañas independientes: solo se desplaza la pestaña cuyo panel está abierto */
+    #leftTabs.shift { transform: none; }
+    #legendTab, #drawerTab { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s, color 0.2s; }
+    #legendTab.on, #drawerTab.on { transform: translateX(var(--lw)); z-index: 1102; }
+    #legendPanel, #drawerPanel { padding-left: 44px; }
+
+    /* Botón SOBRE (? + texto) y franja superior desplazada para dejarle lugar */
+    #btnInfo { width: auto; height: 34px; border-radius: 17px; padding: 0 12px 0 0; gap: 0; }
+    #btnInfo .bi-q { width: 34px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    #btnInfo .bi-t { font-size: 0.55rem; font-weight: 700; letter-spacing: 1.2px; margin-left: -2px; }
+    #header { top: calc(7.5% + 38px); max-width: min(300px, 92%); }
+    #idBadge { top: calc(7.5% + 95px); }
+    #satCount { top: calc(7.5% + 120px); }
+    #netStatus { top: calc(7.5% + 146px); }
+    #confirmBanner { top: calc(7.5% + 168px); }
+
+    /* SOBRE: margen inferior derecho, resaltado en amarillo */
+    #btnInfo {
+      top: auto; bottom: 5.8%; right: 2.2%;
+      background: rgba(30,22,0,0.92); border: 1.5px solid #ffd600; color: #ffd600;
+      box-shadow: 0 0 14px rgba(255,214,0,0.45), inset 0 0 8px rgba(255,214,0,0.15);
+    }
+    #btnInfo .bi-q, #btnInfo .bi-t { color: #ffd600; text-shadow: 0 0 6px rgba(255,214,0,0.6); }
+    #btnInfo:hover, #btnInfo:active { background: rgba(70,52,0,0.95); color: #fff3a0; box-shadow: 0 0 20px rgba(255,214,0,0.7); }
+
+    /* Franja superior de vuelta arriba (SOBRE ya no está en esa zona) */
+    #header { top: 7.2%; max-width: min(300px, 92%); }
+    #idBadge { top: calc(7.2% + 57px); }
+    #satCount { top: calc(7.2% + 82px); }
+    #netStatus { top: calc(7.2% + 108px); }
+    #confirmBanner { top: calc(7.2% + 130px); }
+
+    /* Próximo en tránsito: margen derecho, sobre el radar de la imagen (océano libre) */
+    #nextPass, #nextPass:is(*) {
+      top: 55%; bottom: auto; left: auto; right: 1%; margin: 0;
+      width: 26%; min-width: 96px; max-height: 10.2%;
+    }
+    @media (max-width: 420px) {
+      #nextPass { top: 55%; bottom: auto; left: auto; right: 1%; margin: 0; width: 26%; max-height: 10.2%; }
+    }
+
+    /* Próximo en tránsito: crece hacia abajo para mostrar todo el contenido (provincias, etc.) */
+    #nextPass { max-height: none !important; height: auto; overflow: visible; padding-bottom: 8px; }
+    #nextPass .np-meta, #nextPass .np-eta { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
+    #nextPass .np-name { white-space: normal; overflow: visible; }
   </style>
 </head>
 <body>
@@ -895,6 +961,8 @@
     <div class="load-bar-wrap"><div class="load-bar"></div></div>
   </div>
 
+  <div id="bgBlur" aria-hidden="true"></div>
+  <div id="stageWrap"><div id="stage">
   <div id="map"></div>
   <div id="netStatus">INICIANDO…</div>
   <div id="radarSweep" aria-hidden="true">
@@ -936,28 +1004,42 @@
         <div id="detailBox"></div>
       </div>
     </div>
-    <div id="drawerTab" title="Abrir panel">Identificados</div>
 
     <!-- controles eliminados: más fluido -->
 
 
-    <div id="legend">
-      <div class="leg-row"><span class="dot" style="background:#4fc3f7"></span> Estaciones (ISS)</div>
-      <div class="leg-row"><span class="dot" style="background:#26c6da"></span> Starlink / Comms</div>
-      <div class="leg-row"><span class="dot" style="background:#ce93d8"></span> Meteorología</div>
-      <div class="leg-row"><span class="dot" style="background:#66bb6a"></span> Obs. Tierra</div>
-      <div class="leg-row"><span class="dot" style="background:#ffb74d"></span> Navegación</div>
-      <div class="leg-row" style="margin-top:4px;opacity:0.85;font-size:0.45rem;color:#5ef0b8">◆ Todos = conocidos · no OVNI</div>
+    <!-- Drawer izquierdo deslizable: tipos de satélite -->
+    <div id="legendDrawer">
+      <div id="legendPanel">
+        <div class="panel-title">Tipos de satélite</div>
+      <div id="legend">
+        <div class="leg-row"><span class="dot" style="background:#4fc3f7"></span> Estaciones (ISS)</div>
+        <div class="leg-row"><span class="dot" style="background:#26c6da"></span> Starlink / Comms</div>
+        <div class="leg-row"><span class="dot" style="background:#ce93d8"></span> Meteorología</div>
+        <div class="leg-row"><span class="dot" style="background:#66bb6a"></span> Obs. Tierra</div>
+        <div class="leg-row"><span class="dot" style="background:#ffb74d"></span> Navegación</div>
+        <div class="leg-row" style="margin-top:6px;opacity:0.9;font-size:0.55rem;color:#5ef0b8">◆ Todos = conocidos · no OVNI</div>
+      </div>
+      </div>
     </div>
 
-    <button id="btnInfo" title="¿Qué estoy viendo?">?</button>
+    <!-- Pestañas izquierdas apiladas -->
+    <div id="leftTabs">
+      <button id="legendTab" type="button" aria-label="Tipos de satélite" title="Tipos de satélite">Tipos</button>
+      <button id="drawerTab" type="button" aria-label="Objetos identificados" title="Objetos identificados">Identificados</button>
+    </div>
+
+    <button id="btnInfo" title="¿Qué estoy viendo?"><span class="bi-q">?</span><span class="bi-t">SOBRE</span></button>
 
     <!-- timeline eliminado: zona inferior = en tránsito + estado red -->
   </div>
 
+  </div></div><!-- /stage -->
+
   <!-- Modal educativo -->
   <div id="infoModal">
     <div id="infoCard">
+      <button class="close-x" id="closeInfoX" type="button" aria-label="Cerrar" title="Cerrar">&#10005;</button>
       <h2>¿QUÉ ESTOY VIENDO?</h2>
       <div class="sub">CENTINELA · MÓDULO DE IDENTIFICACIÓN ORBITAL</div>
       <p>
@@ -986,6 +1068,7 @@
       <p style="font-size:0.62rem;opacity:0.7">
         Datos: TLE públicos (NORAD/CelesTrak) · propagación SGP4 · foco en territorio argentino.
       </p>
+      <p style="font-size:0.62rem;text-align:right;color:#8ad4f0;margin-top:8px">Desarrollado por: <strong style="color:#e0f4ff">Aldo Ríos</strong>. (Centinela UFO Argentina)</p>
       <button class="close-btn" id="closeInfo">ENTENDIDO · NO CONFUNDIR CON OVNIS</button>
     </div>
   </div>
@@ -1102,93 +1185,185 @@
     let scanPct = 0;
     let detectionOn = true;
 
+    // =====================================================================
+    // MAPA BASE: la imagen del usuario (assets/mapa-sudamerica.jpg).
+    // Se georreferencia con una proyección en perspectiva calibrada sobre
+    // puntos reales de la imagen (Titicaca, Uyuni, Valdés, Malvinas, Uruguay,
+    // Tierra del Fuego…). Error medio ≈ 8 px sobre 941 px de ancho.
+    // =====================================================================
+    const MAP_IMG_URL = 'assets/mapa-sudamerica.jpg';
+    const IMG_W = 941, IMG_H = 1672;
+    const GEO = { lam0: -68.9167, phi0: -35.7711, R: 2005.1156, cx: 319.328, cy: 940.4627, rot: 4.8365, D: 2.4832 };
+    const GEO_LIM = 1 / GEO.D + 0.04;   // límite del horizonte visible
+
+    function geoCore(lat, lon) {
+      const d2r = Math.PI / 180, g = GEO;
+      const ph = lat * d2r, la = (lon - g.lam0) * d2r, p0 = g.phi0 * d2r;
+      return {
+        cosc: Math.sin(p0) * Math.sin(ph) + Math.cos(p0) * Math.cos(ph) * Math.cos(la),
+        x: Math.cos(ph) * Math.sin(la),
+        y: Math.cos(p0) * Math.sin(ph) - Math.sin(p0) * Math.cos(ph) * Math.cos(la)
+      };
+    }
+    function geoVisible(lat, lon) { return geoCore(lat, lon).cosc > GEO_LIM; }
+    // lat/lon -> píxel de la imagen (x derecha, y abajo)
+    function geoToPx(lat, lon) {
+      const g = GEO, c = geoCore(lat, lon);
+      let x = c.x, y = c.y;
+      if (c.cosc > GEO_LIM) {
+        const k = (g.D - 1) / (g.D - c.cosc);
+        x *= k; y *= k;
+      } else {                          // detrás de la Tierra: lo mandamos fuera de pantalla
+        const m = Math.hypot(x, y) || 1, r = (1400 + 600 * (GEO_LIM - c.cosc)) / g.R;
+        x = x / m * r; y = y / m * r;
+      }
+      const a = g.rot * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+      return [g.cx + g.R * (x * ca - y * sa), g.cy - g.R * (x * sa + y * ca)];
+    }
+    // píxel de la imagen -> lat/lon (Newton)
+    function pxToGeo(px, py) {
+      let lat = -35, lon = -65;
+      for (let i = 0; i < 40; i++) {
+        const p = geoToPx(lat, lon), ex = p[0] - px, ey = p[1] - py;
+        if (Math.abs(ex) + Math.abs(ey) < 1e-5) break;
+        const h = 1e-4, p1 = geoToPx(lat + h, lon), p2 = geoToPx(lat, lon + h);
+        const a = (p1[0] - p[0]) / h, c = (p1[1] - p[1]) / h;
+        const b = (p2[0] - p[0]) / h, d = (p2[1] - p[1]) / h;
+        const det = a * d - b * c;
+        if (Math.abs(det) < 1e-9) break;
+        lat -= (d * ex - b * ey) / det;
+        lon -= (-c * ex + a * ey) / det;
+        lat = Math.max(-89, Math.min(89, lat));
+      }
+      return [lat, lon];
+    }
+    // Corta una trayectoria donde pasa por detrás de la Tierra (evita líneas que cruzan la imagen)
+    function splitVisible(pts) {
+      const out = []; let cur = [];
+      for (const q of pts) {
+        if (geoVisible(q[0], q[1])) cur.push(q);
+        else { if (cur.length > 1) out.push(cur); cur = []; }
+      }
+      if (cur.length > 1) out.push(cur);
+      return out;
+    }
+
     function initMap() {
-      map = L.map('map', {
-        center: [-22.0, -60.0],
-        zoom: 3,
-        minZoom: 3,
-        maxZoom: 3,
-        maxBounds: MAP_BOUNDS,
-        maxBoundsViscosity: 1.0,
-        dragging: true,
-        doubleClickZoom: false,
-        scrollWheelZoom: false,
-        touchZoom: false,
-        boxZoom: false,
-        zoomControl: false,
-        attributionControl: false
+      const el = document.getElementById('map');
+
+      // CRS propio: 1 unidad = 1 píxel de la imagen (zoom 0)
+      const PixelProjection = {
+        project: (ll) => { const p = geoToPx(ll.lat, ll.lng); return new L.Point(p[0], -p[1]); },
+        unproject: (pt) => { const g = pxToGeo(pt.x, -pt.y); return new L.LatLng(g[0], g[1]); },
+        bounds: L.bounds([0, -IMG_H], [IMG_W, 0])
+      };
+      const SatCRS = L.extend({}, L.CRS.Simple, { projection: PixelProjection });
+
+      const t0 = pxToGeo(0, 0), t1 = pxToGeo(IMG_W, IMG_H), tc = pxToGeo(IMG_W / 2, IMG_H / 2);
+      const LL_TL = L.latLng(t0[0], t0[1]), LL_BR = L.latLng(t1[0], t1[1]), LL_CT = L.latLng(tc[0], tc[1]);
+
+      // Capa de imagen anclada por píxeles (la imagen está rotada ~5° respecto a lat/lon)
+      const PixelImage = L.ImageOverlay.extend({
+        _reset: function () {
+          const m = this._map, img = this._image;
+          const tl = m.latLngToLayerPoint(LL_TL), br = m.latLngToLayerPoint(LL_BR);
+          L.DomUtil.setPosition(img, tl);
+          img.style.width = (br.x - tl.x) + 'px';
+          img.style.height = (br.y - tl.y) + 'px';
+        },
+        _animateZoom: function (e) {
+          const m = this._map;
+          L.DomUtil.setTransform(this._image, m._latLngToNewLayerPoint(LL_TL, e.zoom, e.center), m.getZoomScale(e.zoom));
+        }
       });
 
-      // MAPA BASE NUEVO: estilo satelital realista inspirado en Google Earth.
-      // Se reemplaza la cartografía oscura anterior por imágenes de satélite globales.
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19,
-        maxNativeZoom: 19,
-        opacity: 1,
-        attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community'
-      }).addTo(map);
+      const fitZoom = () => {
+        const w = el.clientWidth || window.innerWidth, h = el.clientHeight || window.innerHeight;
+        return Math.log2(Math.min(w / IMG_W, h / IMG_H));
+      };
+      const z0 = fitZoom();
 
-      // Referencias geográficas finas: nombres y límites sobre la imagen satelital.
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19,
-        opacity: 0.88,
-        attribution: 'Labels &copy; Esri'
-      }).addTo(map);
+      map = L.map('map', {
+        crs: SatCRS,
+        center: LL_CT, zoom: z0, minZoom: z0, maxZoom: z0, zoomSnap: 0,
+        zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false,
+        dragging: false, touchZoom: false, doubleClickZoom: false, scrollWheelZoom: false,
+        boxZoom: false, keyboard: false, zoomControl: false, attributionControl: false
+      });
 
-      // Islas Malvinas — colores argentinos (celeste / blanco)
+      new PixelImage(MAP_IMG_URL, [[0, 0], [1, 1]], { pane: 'tilePane', interactive: false, alt: '' }).addTo(map);
+
+      // Mantener la imagen completa a la vista al girar / redimensionar
+      const refit = () => {
+        map.invalidateSize({ animate: false });
+        const z = fitZoom();
+        map.options.minZoom = z; map.options.maxZoom = z;
+        map.setView(LL_CT, z, { animate: false });
+      };
+      let rt = null;
+      const later = () => { clearTimeout(rt); rt = setTimeout(refit, 120); };
+      window.addEventListener('resize', later);
+      window.addEventListener('orientationchange', later);
+      setTimeout(refit, 0);
+
+      // Contorno de Argentina: dato para detectar "sobre Argentina" y límite amarillo dibujado encima de la imagen.
       const malvinas = [
         [-51.25, -61.35], [-51.15, -60.70], [-51.30, -60.05], [-51.55, -59.70],
         [-51.85, -59.85], [-52.05, -60.40], [-52.00, -61.10], [-51.70, -61.50],
         [-51.40, -61.55], [-51.25, -61.35]
       ];
-      L.polygon(malvinas, {
-        color: '#74c0e8',
-        weight: 1.5,
-        opacity: 0.95,
-        fillColor: '#7ec8e8',
-        fillOpacity: 0.45
-      }).addTo(map);
+      fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json')
+        .then(r => r.json())
+        .then(topo => {
+          if (typeof topojson === 'undefined') return;
+          const fc = topojson.feature(topo, topo.objects.countries);
+          const arg = fc.features.find(f => f.properties && f.properties.name === 'Argentina');
+          if (!arg) return;
+          const rings = [];
+          const polys = arg.geometry.type === 'MultiPolygon' ? arg.geometry.coordinates : [arg.geometry.coordinates];
+          polys.forEach(poly => rings.push(poly[0]));
+          rings.push(malvinas.map(ll => [ll[1], ll[0]]));
+          ARG_RINGS = rings;
 
-      // Soledad (este) simplificado
-      const soledad = [
-        [-51.45, -58.95], [-51.35, -58.20], [-51.55, -57.75], [-51.90, -58.10],
-        [-52.05, -58.60], [-51.85, -59.20], [-51.55, -59.15], [-51.45, -58.95]
-      ];
-      L.polygon(soledad, {
-        color: '#74c0e8',
-        weight: 1.5,
-        opacity: 0.95,
-        fillColor: '#a8d8f0',
-        fillOpacity: 0.4
-      }).addTo(map);
-
-      L.marker([-51.75, -59.5], {
-        icon: L.divIcon({
-          className: '',
-          html: '<div style="color:#e8f6ff;font-size:10px;font-weight:700;letter-spacing:0.6px;text-shadow:0 0 6px rgba(0,0,0,0.9),0 1px 2px #000;white-space:nowrap;text-align:center">Islas Malvinas</div>',
-          iconSize: [100, 16],
-          iconAnchor: [50, 8]
-        }),
-        interactive: false
-      }).addTo(map);
-
-      // Panel próximo en tránsito: HUD fijo (margen derecho), no anclado al mapa
-      map.setView([-22.0, -60.0], 3);
+          // Límite de la República Argentina en amarillo (continente + Tierra del Fuego + Malvinas)
+          const glow = { color: '#ffb300', weight: 4, opacity: 0.2, fill: false, lineJoin: 'round', interactive: false };
+          const core = { color: '#ffd600', weight: 1.1, opacity: 1, fill: false, lineJoin: 'round', interactive: false };
+          [glow, core].forEach(st => {
+            L.geoJSON(arg, { style: st, interactive: false }).addTo(map);
+            L.polyline(malvinas, st).addTo(map);
+          });
+          if (typeof updateOverList === 'function') { try { updateOverList(); } catch (e) {} }
+        })
+        .catch(() => {});
     }
 
-    // Drawer toggle
+    // Menús izquierdos: Tipos / Identificados (uno abierto a la vez)
+    function setLeftPanel(name) {
+      const dr = document.getElementById('drawer');
+      const ld = document.getElementById('legendDrawer');
+      const tabs = document.getElementById('leftTabs');
+      const tI = document.getElementById('drawerTab');
+      const tT = document.getElementById('legendTab');
+      if (!dr || !ld || !tabs) return;
+      drawerOpen = (name === 'ident');
+      dr.classList.toggle('open', name === 'ident');
+      ld.classList.toggle('open', name === 'tipos');
+      tabs.classList.toggle('shift', !!name);
+      if (tI) tI.classList.toggle('on', name === 'ident');
+      if (tT) tT.classList.toggle('on', name === 'tipos');
+    }
+    function setupLegendDrawer() {
+      const ld = document.getElementById('legendDrawer');
+      const t = document.getElementById('legendTab');
+      if (!ld || !t) return;
+      t.addEventListener('click', () => setLeftPanel(ld.classList.contains('open') ? null : 'tipos'));
+    }
+    // Drawer Identificados
     function setupDrawer() {
       const tab = document.getElementById('drawerTab');
       const drawer = document.getElementById('drawer');
       tab.addEventListener('click', () => {
-        drawerOpen = !drawerOpen;
-        drawer.classList.toggle('open', drawerOpen);
-        // mover pestaña junto al panel
-        if (drawerOpen) {
-          tab.style.right = drawer.offsetWidth + 'px';
-        } else {
-          tab.style.right = '0';
-        }
+        setLeftPanel(drawer.classList.contains('open') ? null : 'ident');
       });
     }
 
@@ -1447,10 +1622,33 @@
       return -65.5;
     }
 
+    // Contorno real de Argentina (se llena al cargar la geometría). null = usar la lógica aproximada.
+    let ARG_RINGS = null;
+    function pointInRing(lon, lat, ring) {
+      let inside = false;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+        if (((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) inside = !inside;
+      }
+      return inside;
+    }
+
     function overAR(lon, lat) {
       // Caja gruesa primero
-      if (lat < -55.05 || lat > -21.8) return false;
-      if (lon < -73.6 || lon > -53.5) return false;
+      if (lat < -55.2 || lat > -21.7) return false;
+      if (lon < -73.7 || lon > -53.5) return false;
+
+      // Con la geometría real cargada: punto dentro del contorno (incluye Misiones)
+      if (ARG_RINGS) {
+        for (let i = 0; i < ARG_RINGS.length; i++) {
+          if (pointInRing(lon, lat, ARG_RINGS[i])) return true;
+        }
+        return false;
+      }
+
+      // Respaldo aproximado: Misiones (cuña entre Paraguay y Brasil)
+      if (lat >= -27.4 && lat <= -25.55 && lon >= -54.65 && lon <= -53.65) return true;
+      if (lat >= -28.2 && lat <= -27.0 && lon >= -55.7 && lon <= -53.65) return true;
 
       // Oeste: no marcar Chile ni Pacífico
       if (lon < chileBorderMinLon(lat)) return false;
@@ -1459,7 +1657,7 @@
       if (lat > -34.95 && lat < -30.05 && lon > -58.15) return false;
 
       // Noreste: excluir sur de Brasil
-      if (lat > -33.9 && lon > -53.9) return false;
+      if (lat > -33.9 && lon > -53.9) return false; // (Misiones ya se resolvió arriba)
 
       // Norte: excluir franja claramente boliviana/paraguaya
       if (lat > -22.8 && lon < -64.2) return false; // Bolivia
@@ -1674,7 +1872,7 @@
           if (p) seg.push([p.lat, p.lon]);
         }
         if (seg.length >= 2) {
-          polyline = L.polyline(seg, {
+          polyline = L.polyline(splitVisible(seg), {
             color: orbitColor,
             weight: 1.5,
             opacity: 0.55,
@@ -1730,7 +1928,7 @@
             const p = getPos(sat.satrec, new Date(simTime + t * 60000));
             if (p) seg.push([p.lat, p.lon]);
           }
-          if (seg.length >= 2) sat.polyline.setLatLngs(seg);
+          if (seg.length >= 2) sat.polyline.setLatLngs(splitVisible(seg));
         }
       }
     }
@@ -1916,12 +2114,7 @@
       });
       // Abrir panel lateral con el seguimiento
       const drawer = document.getElementById('drawer');
-      const tab = document.getElementById('drawerTab');
-      if (drawer && !drawer.classList.contains('open')) {
-        drawerOpen = true;
-        drawer.classList.add('open');
-        if (tab) tab.style.right = drawer.offsetWidth + 'px';
-      }
+      if (drawer && !drawer.classList.contains('open')) setLeftPanel('ident');
       updateOverList();
       showConfirmBanner(sat);
       const box = document.getElementById('detailBox');
@@ -2094,6 +2287,12 @@
       document.getElementById('closeInfo').addEventListener('click', () => {
         modal.classList.remove('show');
       });
+      document.getElementById('closeInfoX').addEventListener('click', () => {
+        modal.classList.remove('show');
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') modal.classList.remove('show');
+      });
       modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.classList.remove('show');
       });
@@ -2207,6 +2406,7 @@
       try {
         initMap();
         setupDrawer();
+        setupLegendDrawer();
         setupControls();
         setupInfoModal();
         

@@ -1,10 +1,11 @@
 /* Centinela UFO — Service Worker: app shell offline */
-const CACHE = 'centinela-v4-logo-visible';
+const CACHE = 'centinela-v19-proximo-alto';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
-  './assets/logo-centinela.png'
+  './assets/logo-centinela.png',
+  './assets/mapa-sudamerica.jpg'
 ];
 const CDN = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
