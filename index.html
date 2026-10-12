@@ -1178,7 +1178,7 @@
     let map, satellites = [], allCatalog = [], selectedSat = null;
     let globalMode = false;
     let simTime = Date.now();
-    let speed = 24, paused = false, lastTick = 0;
+    let speed = 1, paused = false, lastTick = 0;   // 1 = HORA REAL (el mapa nunca se adelanta ni se atrasa respecto a la realidad)
     let lastWallResync = 0;
     let tleMode = "offline"; // offline | live
     let drawerOpen = false;
@@ -2211,7 +2211,14 @@
 
       // Solo AVANZA el tiempo (nunca vuelve atrás)
       if (!paused) {
-        simTime += dt * speed;
+        if (speed === 1) {
+          // Hora real: el reloj del mapa sale SIEMPRE del reloj del teléfono. Así, al salir y volver a
+          // entrar (o actualizar), cada satélite está donde está de verdad: en el mismo punto o más adelante,
+          // nunca en un estado anterior. Math.max evita retrocesos si cambia el reloj del equipo.
+          simTime = Math.max(simTime, Date.now());
+        } else {
+          simTime += dt * speed;
+        }
       }
 
       updateTracksAndMarkers();

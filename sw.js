@@ -1,5 +1,5 @@
 /* Centinela UFO — Service Worker: app shell offline */
-const CACHE = 'centinela-v19-proximo-alto';
+const CACHE = 'centinela-v20-hora-real';
 const APP_SHELL = [
   './',
   './index.html',
