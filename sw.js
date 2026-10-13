@@ -1,5 +1,5 @@
 /* Centinela UFO — Service Worker: app shell offline */
-const CACHE = 'centinela-v20-hora-real';
+const CACHE = 'centinela-v43';
 const APP_SHELL = [
   './',
   './index.html',
@@ -39,7 +39,18 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  // Cache-first for app shell + CDN libs
+  // Network-first para el HTML (si no, una versión vieja de index.html quedaba pegada en caché y los arreglos nunca llegaban)
+  const isPage = event.request.mode === 'navigate' || /\/(index\.html)?(\?.*)?$/.test(new URL(url).pathname);
+  if (event.request.method === 'GET' && isPage && new URL(url).origin === self.location.origin) {
+    event.respondWith(
+      fetch(event.request).then((res) => {
+        if (res && res.status === 200) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(event.request, copy)).catch(() => {}); }
+        return res;
+      }).catch(() => caches.match(event.request).then((c) => c || caches.match('./index.html')))
+    );
+    return;
+  }
+  // Cache-first for assets + CDN libs
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
@@ -52,4 +63,12 @@ self.addEventListener('fetch', (event) => {
       }).catch(() => cached);
     })
   );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    for (const c of list) { if ('focus' in c) return c.focus(); }
+    if (self.clients.openWindow) return self.clients.openWindow('./');
+  }));
 });
