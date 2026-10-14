@@ -2005,10 +2005,33 @@
       }
       return seg.length >= 2 ? splitVisible(seg) : [];
     }
-    // Garantiza que el satélite tenga SU línea en el mapa, con datos actuales (la recrea si faltaba)
+    // La línea de órbita SOLO se dibuja desde ORBIT_LINE_LEAD_SEC segundos antes de tocar el territorio argentino
+    // y mientras el satélite está sobre él. Fuera de ese lapso no se dibuja (el marcador sí se sigue mostrando).
+    const ORBIT_LINE_LEAD_SEC = 180;   // 3 min: coincide con el texto del contador
+    function orbitLineActive(sat, centerMs) {
+      const c = sat._lineChk;
+      if (c && Math.abs(centerMs - c.t) < 2000) return c.v;       // cache: no recalcula en cada cuadro
+      let v = false;
+      try {
+        const p0 = getPos(sat.satrec, new Date(centerMs));
+        if (okPos(p0)) {
+          if (overAR(p0.lon, p0.lat)) v = true;
+          else if (arBoxDistKm(p0.lat, p0.lon) <= ORBIT_LINE_LEAD_SEC * 9) {   // 9 km/s = cota de velocidad terrestre
+            for (let t = 5; t <= ORBIT_LINE_LEAD_SEC; t += 5) {
+              const p = getPos(sat.satrec, new Date(centerMs + t * 1000));
+              if (okPos(p) && overAR(p.lon, p.lat)) { v = true; break; }
+            }
+          }
+        }
+      } catch (e) { v = false; }
+      sat._lineChk = { t: centerMs, v: v };
+      return v;
+    }
+    // Garantiza que el satélite tenga SU línea en el mapa cuando corresponde (la quita cuando no)
     function ensurePolyline(sat, centerMs, stepMin) {
       if (!map || !sat || !sat.satrec) return;
-      const latlngs = satSegment(sat, centerMs, stepMin || 3);
+      const show = orbitLineActive(sat, centerMs);
+      const latlngs = show ? satSegment(sat, centerMs, stepMin || 3) : [];
       if (!sat.polyline) {
         sat.polyline = L.polyline(latlngs, {
           color: sat.color || TYPE_COLORS[sat.type] || '#29b6f6', weight: 1.5, opacity: 0.55,
@@ -2018,7 +2041,8 @@
       } else {
         sat.polyline.setLatLngs(latlngs);      // [] si no hay tramo visible: nunca queda una línea vieja congelada
       }
-      if (detectionOn && !map.hasLayer(sat.polyline)) sat.polyline.addTo(map);
+      if (show && detectionOn) { if (!map.hasLayer(sat.polyline)) sat.polyline.addTo(map); }
+      else if (map.hasLayer(sat.polyline)) map.removeLayer(sat.polyline);
     }
 
     // Crea marcador + línea de órbita de un satélite
@@ -2146,10 +2170,9 @@
     function updateSatCountLabel(n, useGlobal) {
       const countEl = document.getElementById('satCount');
       if (!countEl) return;
-      const base = useGlobal
-        ? (n + ' en constelación · tráfico orbital conocido')
-        : (n + ' en tránsito hacia la República Argentina');
-      const msg = base + '  ·  click sobre el satélite para más info';
+      const msg = useGlobal
+        ? (n + ' en constelación · tráfico orbital conocido  ·  click sobre el satélite para más info')
+        : (n + ' satélites, en tránsito hacia la República Argentina - Las líneas orbitales se dibujan, tres minutos antes de que los satélites detecten el territorio Argentino.');
       countEl.innerHTML = '<div class="sat-scroll"><span>' + msg + '</span><span>' + msg + '</span></div>';
     }
 
